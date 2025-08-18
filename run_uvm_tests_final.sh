@@ -212,7 +212,7 @@ get_buffer_size() {
     local test_name="$1"
     
     case "$test_name" in
-        "VA_RESIDENCY_INFO"|"VA_RANGE_INFO"|"PAGE_TREE"|"PMM_QUERY"|"PMM_QUERY_PMA_STATS")
+        "VA_RESIDENCY_INFO"|"VA_RANGE_INFO"|"PAGE_TREE"|"PMM_QUERY"|"PMM_QUERY_PMA_STATS"|"CHANNEL_STRESS")
             echo 4096  # 需要更大缓冲区的测试
             ;;
         *)
