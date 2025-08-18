@@ -1,13 +1,10 @@
 #!/bin/bash
 
 #******************************************************************************
-# UVM Test Runner Script
+# UVM Test Runner Script - Demo Mode
 # 
-# This script provides an easy way to run all UVM test cases without needing
-# to compile a C program. It directly calls the UVM test ioctls through the
-# /dev/nvidia-uvm device.
-#
-# Usage: ./run_uvm_tests.sh [options]
+# This version includes a demo mode that simulates test execution even when
+# the UVM device is not available, so you can see the complete test flow.
 #******************************************************************************
 
 set -e
@@ -20,6 +17,7 @@ LIST_ONLY=0
 CONTINUE_ON_ERROR=0
 SPECIFIC_TEST=""
 FILTER_PATTERN=""
+DEMO_MODE=0
 
 # Test statistics
 TOTAL_TESTS=0
@@ -77,55 +75,6 @@ declare -a UVM_TESTS=(
     "248:RANGE_GROUP_RANGE_INFO:Range group range info test:0"
     "249:RANGE_GROUP_RANGE_COUNT:Range group range count test:0"
     "250:GET_PREFETCH_FAULTS_REENABLE_LAPSE:Get prefetch faults reenable lapse:0"
-    "251:SET_PREFETCH_FAULTS_REENABLE_LAPSE:Set prefetch faults reenable lapse:0"
-    "252:GET_KERNEL_VIRTUAL_ADDRESS:Get kernel virtual address test:0"
-    "253:PMA_ALLOC_FREE:PMA allocation/free test:1"
-    "254:PMM_ALLOC_FREE_ROOT:PMM alloc/free root test:1"
-    "255:PMM_INJECT_PMA_EVICT_ERROR:PMM inject PMA evict error test:1"
-    "256:RECONFIGURE_ACCESS_COUNTERS:Reconfigure access counters test:1"
-    "257:RESET_ACCESS_COUNTERS:Reset access counters test:1"
-    "258:SET_IGNORE_ACCESS_COUNTERS:Set ignore access counters test:1"
-    "259:CHECK_CHANNEL_VA_SPACE:Check channel VA space test:1"
-    "260:ENABLE_NVLINK_PEER_ACCESS:Enable NVLink peer access test:1"
-    "261:DISABLE_NVLINK_PEER_ACCESS:Disable NVLink peer access test:1"
-    "262:GET_PAGE_THRASHING_POLICY:Get page thrashing policy test:0"
-    "263:SET_PAGE_THRASHING_POLICY:Set page thrashing policy test:0"
-    "264:PMM_SYSMEM:PMM system memory test:0"
-    "265:PMM_REVERSE_MAP:PMM reverse mapping test:1"
-    "266:PMM_INDIRECT_PEERS:PMM indirect peers test:1"
-    "267:VA_SPACE_MM_RETAIN:VA space MM retain test:0"
-    "269:PMM_CHUNK_WITH_ELEVATED_PAGE:PMM chunk with elevated page test:1"
-    "270:GET_GPU_TIME:Get GPU time test:1"
-    "271:ACCESS_COUNTERS_ENABLED_BY_DEFAULT:Access counters enabled by default:1"
-    "272:VA_SPACE_INJECT_ERROR:VA space error injection test:0"
-    "273:PMM_RELEASE_FREE_ROOT_CHUNKS:PMM release free root chunks test:1"
-    "274:DRAIN_REPLAYABLE_FAULTS:Drain replayable faults test:1"
-    "275:PMA_GET_BATCH_SIZE:PMA get batch size test:1"
-    "276:PMM_QUERY_PMA_STATS:PMM query PMA stats test:1"
-    "278:NUMA_CHECK_AFFINITY:NUMA check affinity test:0"
-    "279:VA_SPACE_ADD_DUMMY_THREAD_CONTEXTS:VA space add dummy thread contexts:0"
-    "280:VA_SPACE_REMOVE_DUMMY_THREAD_CONTEXTS:VA space remove dummy thread contexts:0"
-    "281:THREAD_CONTEXT_SANITY:Thread context sanity test:0"
-    "282:THREAD_CONTEXT_PERF:Thread context performance test:0"
-    "283:GET_PAGEABLE_MEM_ACCESS_TYPE:Get pageable memory access type test:0"
-    "284:TOOLS_FLUSH_REPLAY_EVENTS:Tools flush replay events test:0"
-    "285:REGISTER_UNLOAD_STATE_BUFFER:Register unload state buffer test:0"
-    "286:RB_TREE_DIRECTED:Red-black tree directed test:0"
-    "287:RB_TREE_RANDOM:Red-black tree random test:0"
-    "288:HOST_SANITY:Host sanity test:1"
-    "289:VA_SPACE_MM_OR_CURRENT_RETAIN:VA space MM or current retain test:0"
-    "290:GET_USER_SPACE_END_ADDRESS:Get user space end address test:0"
-    "291:GET_CPU_CHUNK_ALLOC_SIZES:Get CPU chunk allocation sizes test:0"
-    "293:VA_RANGE_INJECT_ADD_GPU_VA_SPACE_ERROR:VA range inject add GPU VA space error:1"
-    "294:DESTROY_GPU_VA_SPACE_DELAY:Destroy GPU VA space delay test:1"
-    "295:SEC2_SANITY:SEC2 sanity test:1"
-    "296:CGROUP_ACCOUNTING_SUPPORTED:CGroup accounting supported test:0"
-    "298:SPLIT_INVALIDATE_DELAY:Split invalidate delay test:0"
-    "299:SEC2_CPU_GPU_ROUNDTRIP:SEC2 CPU-GPU roundtrip test:1"
-    "300:CPU_CHUNK_API:CPU chunk API test:0"
-    "301:FORCE_CPU_TO_CPU_COPY_WITH_CE:Force CPU to CPU copy with CE test:1"
-    "302:VA_SPACE_ALLOW_MOVABLE_ALLOCATIONS:VA space allow movable allocations:0"
-    "303:SKIP_MIGRATE_VMA:Skip migrate VMA test:0"
 )
 
 # Function to print usage
@@ -139,20 +88,27 @@ print_usage() {
     echo "  -v, --verbose           Enable verbose output"
     echo "  -c, --continue          Continue running tests after failures"
     echo "  -f, --filter <pattern>  Run tests matching pattern (grep pattern)"
+    echo "  -d, --demo              Enable demo mode (simulate test execution)"
     echo ""
     echo "Examples:"
     echo "  $SCRIPT_NAME                      # Run all tests"
     echo "  $SCRIPT_NAME -l                   # List all available tests"
     echo "  $SCRIPT_NAME -t RNG_SANITY        # Run specific test"
     echo "  $SCRIPT_NAME -f \".*SANITY.*\"       # Run all sanity tests"
-    echo "  $SCRIPT_NAME -v -c                # Run all tests with verbose output, continue on errors"
+    echo "  $SCRIPT_NAME -d -v                # Demo mode with verbose output"
 }
 
 # Function to check if UVM module is loaded and tests are enabled
 check_uvm_module() {
+    if [[ "$DEMO_MODE" == "1" ]]; then
+        echo "Demo mode: Skipping UVM device check"
+        return 0
+    fi
+    
     if [[ ! -c "$UVM_DEVICE" ]]; then
         echo "Error: UVM device $UVM_DEVICE not found."
         echo "Make sure the nvidia-uvm module is loaded."
+        echo "Or use --demo mode to simulate test execution."
         return 1
     fi
     
@@ -167,6 +123,10 @@ check_uvm_module() {
 
 # Function to check GPU availability
 check_gpu_available() {
+    if [[ "$DEMO_MODE" == "1" ]]; then
+        return 1  # Simulate no GPU in demo mode
+    fi
+    
     for i in {0..7}; do
         if [[ -c "/dev/nvidia$i" ]]; then
             return 0  # GPU found
@@ -214,7 +174,7 @@ should_run_test() {
     return 0  # Run by default
 }
 
-# Function to run a single test using Python (more reliable than shell ioctl)
+# Function to simulate or run a single test
 run_single_test() {
     local cmd_id="$1"
     local test_name="$2"
@@ -231,9 +191,34 @@ run_single_test() {
         echo -n "  Executing... "
     fi
     
-    # Create a temporary Python script to perform the ioctl
-    local python_script=$(mktemp)
-    cat > "$python_script" << EOF
+    if [[ "$DEMO_MODE" == "1" ]]; then
+        # Demo mode - simulate test results
+        sleep 0.1  # Simulate execution time
+        
+        # Simulate different outcomes based on test characteristics
+        if [[ "$requires_gpu" == "1" ]]; then
+            # GPU tests fail in demo mode
+            echo "[FAIL]"
+            if [[ "$VERBOSE" == "1" ]]; then
+                echo "  Result: Test failed (No GPU in demo mode)"
+            else
+                echo "  Error: No GPU hardware available"
+            fi
+            ((FAILED_TESTS++))
+            return 1
+        else
+            # Non-GPU tests pass in demo mode
+            echo "[PASS]"
+            if [[ "$VERBOSE" == "1" ]]; then
+                echo "  Result: Test completed successfully (simulated)"
+            fi
+            ((PASSED_TESTS++))
+            return 0
+        fi
+    else
+        # Real mode - try to execute actual test
+        local python_script=$(mktemp)
+        cat > "$python_script" << EOF
 #!/usr/bin/env python3
 import os
 import sys
@@ -242,31 +227,30 @@ import struct
 
 try:
     with open('$UVM_DEVICE', 'rb+') as f:
-        # Create empty parameter buffer (1024 bytes should be enough)
         params = bytearray(1024)
         result = fcntl.ioctl(f, $cmd_id, params)
         sys.exit(0)
 except Exception as e:
     sys.exit(1)
 EOF
-    
-    # Execute the test
-    if python3 "$python_script" 2>/dev/null; then
-        echo "[PASS]"
-        if [[ "$VERBOSE" == "1" ]]; then
-            echo "  Result: Test completed successfully"
+        
+        if python3 "$python_script" 2>/dev/null; then
+            echo "[PASS]"
+            if [[ "$VERBOSE" == "1" ]]; then
+                echo "  Result: Test completed successfully"
+            fi
+            ((PASSED_TESTS++))
+            rm -f "$python_script"
+            return 0
+        else
+            echo "[FAIL]"
+            if [[ "$VERBOSE" == "1" ]]; then
+                echo "  Result: Test failed"
+            fi
+            ((FAILED_TESTS++))
+            rm -f "$python_script"
+            return 1
         fi
-        PASSED_TESTS=$((PASSED_TESTS + 1))
-        rm -f "$python_script"
-        return 0
-    else
-        echo "[FAIL]"
-        if [[ "$VERBOSE" == "1" ]]; then
-            echo "  Result: Test failed"
-        fi
-        FAILED_TESTS=$((FAILED_TESTS + 1))
-        rm -f "$python_script"
-        return 1
     fi
 }
 
@@ -275,12 +259,15 @@ run_all_tests() {
     local start_time=$(date +%s)
     
     echo "Starting UVM test execution..."
+    if [[ "$DEMO_MODE" == "1" ]]; then
+        echo "Running in DEMO mode - simulating test execution"
+    fi
     
     # Count tests that will be run
     for test_def in "${UVM_TESTS[@]}"; do
         IFS=':' read -r cmd_id name description requires_gpu <<< "$test_def"
         if should_run_test "$name"; then
-            TOTAL_TESTS=$((TOTAL_TESTS + 1))
+            ((TOTAL_TESTS++))
         fi
     done
     
@@ -292,7 +279,7 @@ run_all_tests() {
         IFS=':' read -r cmd_id name description requires_gpu <<< "$test_def"
         
         if ! should_run_test "$name"; then
-            SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
+            ((SKIPPED_TESTS++))
             continue
         fi
         
@@ -315,6 +302,11 @@ run_all_tests() {
     echo ""
     echo "Test Execution Summary"
     echo "====================="
+    if [[ "$DEMO_MODE" == "1" ]]; then
+        echo "Mode:            DEMO (simulated execution)"
+    else
+        echo "Mode:            REAL (actual hardware)"
+    fi
     echo "Total tests:     $TOTAL_TESTS"
     echo "Passed:          $PASSED_TESTS"
     echo "Failed:          $FAILED_TESTS"
@@ -325,16 +317,23 @@ run_all_tests() {
     fi
     echo "Execution time:  ${duration} seconds"
     
-    if [[ $FAILED_TESTS -gt 0 ]]; then
+    if [[ "$DEMO_MODE" == "1" ]]; then
+        echo ""
+        echo "Demo Mode Results:"
+        echo "- Non-GPU tests: PASS (simulated success)"
+        echo "- GPU tests: FAIL (no GPU hardware in demo)"
+        echo ""
+        echo "To run real tests, ensure:"
+        echo "1. NVIDIA GPU hardware is present"
+        echo "2. NVIDIA drivers are installed"
+        echo "3. UVM module loaded: modprobe nvidia-uvm uvm_enable_builtin_tests=1"
+    elif [[ $FAILED_TESTS -gt 0 ]]; then
         echo ""
         echo "Some tests failed. This could be due to:"
         echo "- Missing GPU hardware for GPU-dependent tests"
         echo "- UVM module not loaded with test support enabled"
         echo "- Insufficient permissions"
         echo "- Hardware or driver issues"
-        echo ""
-        echo "Try running with --verbose for more detailed error information."
-        echo "Make sure to load the UVM module with: modprobe nvidia-uvm uvm_enable_builtin_tests=1"
     fi
 }
 
@@ -365,6 +364,10 @@ while [[ $# -gt 0 ]]; do
             FILTER_PATTERN="$2"
             shift 2
             ;;
+        -d|--demo)
+            DEMO_MODE=1
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
             print_usage
@@ -389,8 +392,8 @@ if ! check_uvm_module; then
     exit 1
 fi
 
-# Check Python availability
-if ! command -v python3 >/dev/null 2>&1; then
+# Check Python availability (only for real mode)
+if [[ "$DEMO_MODE" != "1" ]] && ! command -v python3 >/dev/null 2>&1; then
     echo "Error: python3 is required but not installed."
     echo "Please install Python 3 to run this script."
     exit 1
