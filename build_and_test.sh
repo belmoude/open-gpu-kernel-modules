@@ -24,21 +24,46 @@ build_test_program() {
     echo ""
     echo "=== Building Test Program ==="
     
-    if [ ! -f "$SCRIPT_DIR/simple_uvm_test.c" ]; then
-        echo "❌ simple_uvm_test.c not found in $SCRIPT_DIR"
-        exit 1
+    # 优先编译智能测试程序
+    if [ -f "$SCRIPT_DIR/smart_uvm_test.c" ]; then
+        echo "编译智能UVM测试程序 (smart_uvm_test.c)..."
+        TEST_PROGRAM="$SCRIPT_DIR/smart_uvm_test"
+        
+        if gcc -Wall -o "$TEST_PROGRAM" "$SCRIPT_DIR/smart_uvm_test.c"; then
+            echo "✅ 智能测试程序编译成功"
+            return 0
+        else
+            echo "⚠️  智能测试程序编译失败，尝试简单版本..."
+        fi
     fi
     
-    echo "Compiling simple_uvm_test.c..."
-    
-    # 尝试编译（可能需要调整包含路径）
-    if gcc -Wall -o "$TEST_PROGRAM" "$SCRIPT_DIR/simple_uvm_test.c"; then
-        echo "✅ Test program compiled successfully"
-    else
-        echo "❌ Compilation failed"
-        echo "   You may need to adjust include paths or install build tools"
-        exit 1
+    # 备选：编译简单测试程序
+    if [ -f "$SCRIPT_DIR/simple_uvm_test.c" ]; then
+        echo "编译简单UVM测试程序 (simple_uvm_test.c)..."
+        TEST_PROGRAM="$SCRIPT_DIR/simple_uvm_test"
+        
+        if gcc -Wall -o "$TEST_PROGRAM" "$SCRIPT_DIR/simple_uvm_test.c"; then
+            echo "✅ 简单测试程序编译成功"
+            return 0
+        else
+            echo "❌ 简单测试程序编译也失败"
+        fi
     fi
+    
+    # 最后备选：编译基础IOCTL测试
+    if [ -f "$SCRIPT_DIR/test_ioctl_simple.c" ]; then
+        echo "编译基础IOCTL测试程序 (test_ioctl_simple.c)..."
+        TEST_PROGRAM="$SCRIPT_DIR/test_ioctl_simple"
+        
+        if gcc -Wall -o "$TEST_PROGRAM" "$SCRIPT_DIR/test_ioctl_simple.c"; then
+            echo "✅ 基础测试程序编译成功"
+            return 0
+        fi
+    fi
+    
+    echo "❌ 所有测试程序编译失败"
+    echo "   请检查编译环境或安装build-essential"
+    exit 1
 }
 
 # 检查和设置UVM环境
