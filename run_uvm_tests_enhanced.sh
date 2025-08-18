@@ -263,7 +263,9 @@ import errno
 try:
     fd = os.open('$UVM_DEVICE', os.O_RDWR)
     try:
-        params = array.array('B', [0] * 1024)
+        # 使用更大的缓冲区以支持需要更多空间的测试
+        buffer_size = 4096 if '$test_name' in ['VA_RESIDENCY_INFO', 'VA_RANGE_INFO'] else 1024
+        params = array.array('B', [0] * buffer_size)
         result = fcntl.ioctl(fd, $cmd_id, params)
         sys.exit(0)
     finally:
