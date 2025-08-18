@@ -13,29 +13,29 @@
 #include <errno.h>
 #include <string.h>
 
-// UVM IOCTL基础定义
-#define UVM_IOCTL_BASE(i)                           (0x46000000 + (i))
+// UVM IOCTL基础定义 - Linux下就是简单的数字
+#define UVM_IOCTL_BASE(i)                           (i)
 #define UVM_TEST_IOCTL_BASE(i)                      UVM_IOCTL_BASE(200 + i)
 
-// 测试命令定义
-#define UVM_TEST_RNG_SANITY                         UVM_TEST_IOCTL_BASE(1)
-#define UVM_TEST_RANGE_TREE_DIRECTED                UVM_TEST_IOCTL_BASE(2)
-#define UVM_TEST_RANGE_TREE_RANDOM                  UVM_TEST_IOCTL_BASE(3)
-#define UVM_TEST_RM_MEM_SANITY                      UVM_TEST_IOCTL_BASE(5)
-#define UVM_TEST_GPU_SEMAPHORE_SANITY               UVM_TEST_IOCTL_BASE(6)
-#define UVM_TEST_TRACKER_SANITY                     UVM_TEST_IOCTL_BASE(12)
-#define UVM_TEST_PUSH_SANITY                        UVM_TEST_IOCTL_BASE(13)
-#define UVM_TEST_CHANNEL_SANITY                     UVM_TEST_IOCTL_BASE(14)
-#define UVM_TEST_CE_SANITY                          UVM_TEST_IOCTL_BASE(16)
-#define UVM_TEST_LOCK_SANITY                        UVM_TEST_IOCTL_BASE(18)
-#define UVM_TEST_PERF_UTILS_SANITY                  UVM_TEST_IOCTL_BASE(19)
-#define UVM_TEST_KVMALLOC                           UVM_TEST_IOCTL_BASE(20)
-#define UVM_TEST_PERF_EVENTS_SANITY                 UVM_TEST_IOCTL_BASE(23)
-#define UVM_TEST_PERF_MODULE_SANITY                 UVM_TEST_IOCTL_BASE(24)
-#define UVM_TEST_RANGE_ALLOCATOR_SANITY             UVM_TEST_IOCTL_BASE(25)
-#define UVM_TEST_FAULT_BUFFER_FLUSH                 UVM_TEST_IOCTL_BASE(27)
-#define UVM_TEST_SEC2_SANITY                        UVM_TEST_IOCTL_BASE(95)
-#define UVM_TEST_SEC2_CPU_GPU_ROUNDTRIP             UVM_TEST_IOCTL_BASE(99)
+// 测试命令定义 - 正确的命令号
+#define UVM_TEST_RNG_SANITY                         201  // UVM_TEST_IOCTL_BASE(1)
+#define UVM_TEST_RANGE_TREE_DIRECTED                202  // UVM_TEST_IOCTL_BASE(2)
+#define UVM_TEST_RANGE_TREE_RANDOM                  203  // UVM_TEST_IOCTL_BASE(3)
+#define UVM_TEST_RM_MEM_SANITY                      205  // UVM_TEST_IOCTL_BASE(5)
+#define UVM_TEST_GPU_SEMAPHORE_SANITY               206  // UVM_TEST_IOCTL_BASE(6)
+#define UVM_TEST_TRACKER_SANITY                     212  // UVM_TEST_IOCTL_BASE(12)
+#define UVM_TEST_PUSH_SANITY                        213  // UVM_TEST_IOCTL_BASE(13)
+#define UVM_TEST_CHANNEL_SANITY                     214  // UVM_TEST_IOCTL_BASE(14)
+#define UVM_TEST_CE_SANITY                          216  // UVM_TEST_IOCTL_BASE(16)
+#define UVM_TEST_LOCK_SANITY                        218  // UVM_TEST_IOCTL_BASE(18)
+#define UVM_TEST_PERF_UTILS_SANITY                  219  // UVM_TEST_IOCTL_BASE(19)
+#define UVM_TEST_KVMALLOC                           220  // UVM_TEST_IOCTL_BASE(20)
+#define UVM_TEST_PERF_EVENTS_SANITY                 223  // UVM_TEST_IOCTL_BASE(23)
+#define UVM_TEST_PERF_MODULE_SANITY                 224  // UVM_TEST_IOCTL_BASE(24)
+#define UVM_TEST_RANGE_ALLOCATOR_SANITY             225  // UVM_TEST_IOCTL_BASE(25)
+#define UVM_TEST_FAULT_BUFFER_FLUSH                 227  // UVM_TEST_IOCTL_BASE(27)
+#define UVM_TEST_SEC2_SANITY                        295  // UVM_TEST_IOCTL_BASE(95)
+#define UVM_TEST_SEC2_CPU_GPU_ROUNDTRIP             299  // UVM_TEST_IOCTL_BASE(99)
 
 // 简化的参数结构
 typedef struct {
