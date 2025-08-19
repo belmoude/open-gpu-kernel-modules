@@ -1,0 +1,41 @@
+# Makefile for UVM Test Runner
+# Usage: make -f Makefile.test
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -std=c99
+LDFLAGS = 
+
+# Source files
+SOURCES = uvm_test_runner.c
+TARGET = uvm_test_runner
+
+# Default target
+all: $(TARGET)
+
+# Build the test runner
+$(TARGET): $(SOURCES)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCES) $(LDFLAGS)
+
+# Install target (optional)
+install: $(TARGET)
+	sudo cp $(TARGET) /usr/local/bin/
+	sudo chmod +x /usr/local/bin/$(TARGET)
+
+# Clean target
+clean:
+	rm -f $(TARGET)
+
+# Help target
+help:
+	@echo "Available targets:"
+	@echo "  all      - Build the UVM test runner (default)"
+	@echo "  install  - Install the test runner to /usr/local/bin"
+	@echo "  clean    - Remove built files"
+	@echo "  help     - Show this help message"
+	@echo ""
+	@echo "Usage examples:"
+	@echo "  make -f Makefile.test"
+	@echo "  make -f Makefile.test install"
+	@echo "  make -f Makefile.test clean"
+
+.PHONY: all install clean help
