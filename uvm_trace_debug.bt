@@ -1,0 +1,157 @@
+#!/usr/bin/env bpftrace
+
+/*
+ * Debug Version - UVM API Parameter Tracer
+ * 
+ * Enhanced tracing with stack traces and detailed debugging info
+ * for uvm_api_create_external_range and uvm_api_map_external_allocation
+ */
+
+BEGIN
+{
+    printf("=== UVM API Debug Tracer Started ===\n");
+    printf("Timestamp: %s\n", strftime("%Y-%m-%d %H:%M:%S", nsecs));
+    printf("Tracing functions:\n");
+    printf("  - uvm_api_create_external_range\n");
+    printf("  - uvm_api_map_external_allocation\n");
+    printf("=====================================\n\n");
+}
+
+kprobe:uvm_api_create_external_range
+{
+    $params = (struct UVM_CREATE_EXTERNAL_RANGE_PARAMS *)arg0;
+    $filp = (struct file *)arg1;
+    
+    printf("\n>>> FUNCTION ENTRY: uvm_api_create_external_range <<<\n");
+    printf("Time:    %s\n", strftime("%H:%M:%S.%f", nsecs));
+    printf("PID:     %d (%s)\n", pid, comm);
+    printf("TID:     %d\n", tid);
+    
+    printf("\nParameters:\n");
+    printf("  params pointer:    %p\n", $params);
+    printf("  filp pointer:      %p\n", $filp);
+    
+    // Safe parameter reading with error checking
+    if ($params != 0) {
+        printf("  base address:      0x%016lx\n", $params->base);
+        printf("  length:            0x%016lx (%lu bytes, %lu MB)\n", 
+               $params->length, $params->length, $params->length / (1024*1024));
+    } else {
+        printf("  ERROR: params pointer is NULL!\n");
+    }
+    
+    printf("\nCall Stack:\n");
+    printf("%s", kstack);
+    printf("----------------------------------------\n");
+}
+
+kprobe:uvm_api_map_external_allocation
+{
+    $params = (struct UVM_MAP_EXTERNAL_ALLOCATION_PARAMS *)arg0;
+    $filp = (struct file *)arg1;
+    
+    printf("\n>>> FUNCTION ENTRY: uvm_api_map_external_allocation <<<\n");
+    printf("Time:    %s\n", strftime("%H:%M:%S.%f", nsecs));
+    printf("PID:     %d (%s)\n", pid, comm);
+    printf("TID:     %d\n", tid);
+    
+    printf("\nParameters:\n");
+    printf("  params pointer:    %p\n", $params);
+    printf("  filp pointer:      %p\n", $filp);
+    
+    // Safe parameter reading with error checking
+    if ($params != 0) {
+        printf("  base address:      0x%016lx\n", $params->base);
+        printf("  length:            0x%016lx (%lu bytes, %lu MB)\n", 
+               $params->length, $params->length, $params->length / (1024*1024));
+        printf("  offset:            0x%016lx\n", $params->offset);
+        printf("  rmCtrlFd:          %d\n", $params->rmCtrlFd);
+        printf("  hClient:           0x%08x\n", $params->hClient);
+        printf("  hMemory:           0x%08x\n", $params->hMemory);
+        printf("  gpuAttributesCount: %lu\n", $params->gpuAttributesCount);
+        
+        // Print detailed GPU attributes if present
+        if ($params->gpuAttributesCount > 0 && $params->gpuAttributesCount <= 8) {
+            printf("\n  GPU Attributes:\n");
+            $i = 0;
+            while ($i < $params->gpuAttributesCount) {
+                $attr = &$params->perGpuAttributes[$i];
+                printf("    [%d] GPU UUID: ", $i);
+                
+                // Print UUID in standard format
+                $j = 0;
+                while ($j < 16) {
+                    printf("%02x", $attr->gpuUuid.uuid[$j]);
+                    if ($j == 3 || $j == 5 || $j == 7 || $j == 9) {
+                        printf("-");
+                    }
+                    $j++;
+                }
+                printf("\n");
+                printf("         Mapping Type:     %u\n", $attr->gpuMappingType);
+                printf("         Caching Type:     %u\n", $attr->gpuCachingType);
+                printf("         Format Type:      %u\n", $attr->gpuFormatType);
+                printf("         Element Bits:     %u\n", $attr->gpuElementBits);
+                printf("         Compression Type: %u\n", $attr->gpuCompressionType);
+                $i++;
+            }
+        } else if ($params->gpuAttributesCount > 8) {
+            printf("  GPU Attributes: %lu (too many to display)\n", $params->gpuAttributesCount);
+        }
+    } else {
+        printf("  ERROR: params pointer is NULL!\n");
+    }
+    
+    printf("\nCall Stack:\n");
+    printf("%s", kstack);
+    printf("----------------------------------------\n");
+}
+
+// Trace function returns
+kretprobe:uvm_api_create_external_range
+{
+    printf("\n<<< FUNCTION RETURN: uvm_api_create_external_range <<<\n");
+    printf("Time:         %s\n", strftime("%H:%M:%S.%f", nsecs));
+    printf("PID:          %d\n", pid);
+    printf("Return Value: 0x%x", retval);
+    if (retval == 0) {
+        printf(" (NV_OK - Success)");
+    } else {
+        printf(" (Error)");
+    }
+    printf("\n");
+    printf("========================================\n");
+}
+
+kretprobe:uvm_api_map_external_allocation
+{
+    printf("\n<<< FUNCTION RETURN: uvm_api_map_external_allocation <<<\n");
+    printf("Time:         %s\n", strftime("%H:%M:%S.%f", nsecs));
+    printf("PID:          %d\n", pid);
+    printf("Return Value: 0x%x", retval);
+    if (retval == 0) {
+        printf(" (NV_OK - Success)");
+    } else {
+        printf(" (Error)");
+    }
+    printf("\n");
+    printf("========================================\n");
+}
+
+// Count function calls
+@create_external_range_calls = count();
+@map_external_allocation_calls = count();
+
+kprobe:uvm_api_create_external_range { @create_external_range_calls++; }
+kprobe:uvm_api_map_external_allocation { @map_external_allocation_calls++; }
+
+END
+{
+    printf("\n=== UVM API Tracing Summary ===\n");
+    printf("Total uvm_api_create_external_range calls: %lu\n", @create_external_range_calls);
+    printf("Total uvm_api_map_external_allocation calls: %lu\n", @map_external_allocation_calls);
+    printf("Tracing ended at: %s\n", strftime("%Y-%m-%d %H:%M:%S", nsecs));
+    
+    clear(@create_external_range_calls);
+    clear(@map_external_allocation_calls);
+}
