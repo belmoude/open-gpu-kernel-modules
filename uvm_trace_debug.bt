@@ -75,24 +75,23 @@ kprobe:uvm_api_map_external_allocation
             printf("\n  GPU Attributes:\n");
             $i = 0;
             while ($i < $params->gpuAttributesCount) {
-                $attr = &$params->perGpuAttributes[$i];
                 printf("    [%d] GPU UUID: ", $i);
                 
-                // Print UUID in standard format
+                // Print UUID in standard format - access array elements directly
                 $j = 0;
                 while ($j < 16) {
-                    printf("%02x", $attr->gpuUuid.uuid[$j]);
+                    printf("%02x", $params->perGpuAttributes[$i].gpuUuid.uuid[$j]);
                     if ($j == 3 || $j == 5 || $j == 7 || $j == 9) {
                         printf("-");
                     }
                     $j++;
                 }
                 printf("\n");
-                printf("         Mapping Type:     %u\n", $attr->gpuMappingType);
-                printf("         Caching Type:     %u\n", $attr->gpuCachingType);
-                printf("         Format Type:      %u\n", $attr->gpuFormatType);
-                printf("         Element Bits:     %u\n", $attr->gpuElementBits);
-                printf("         Compression Type: %u\n", $attr->gpuCompressionType);
+                printf("         Mapping Type:     %u\n", $params->perGpuAttributes[$i].gpuMappingType);
+                printf("         Caching Type:     %u\n", $params->perGpuAttributes[$i].gpuCachingType);
+                printf("         Format Type:      %u\n", $params->perGpuAttributes[$i].gpuFormatType);
+                printf("         Element Bits:     %u\n", $params->perGpuAttributes[$i].gpuElementBits);
+                printf("         Compression Type: %u\n", $params->perGpuAttributes[$i].gpuCompressionType);
                 $i++;
             }
         } else if ($params->gpuAttributesCount > 8) {

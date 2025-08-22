@@ -54,24 +54,23 @@ kprobe:uvm_api_map_external_allocation
         $max_attrs = $params->gpuAttributesCount > 4 ? 4 : $params->gpuAttributesCount;
         $i = 0;
         while ($i < $max_attrs) {
-            $attr = &$params->perGpuAttributes[$i];
             printf("                     GPU[%d]: UUID=", $i);
             
-            // Print UUID bytes
+            // Print UUID bytes - access array elements directly
             $j = 0;
             while ($j < 16) {
-                printf("%02x", $attr->gpuUuid.uuid[$j]);
+                printf("%02x", $params->perGpuAttributes[$i].gpuUuid.uuid[$j]);
                 if ($j == 3 || $j == 5 || $j == 7 || $j == 9) {
                     printf("-");
                 }
                 $j++;
             }
             printf(" MappingType=%u CachingType=%u FormatType=%u ElementBits=%u CompressionType=%u\n",
-                   $attr->gpuMappingType,
-                   $attr->gpuCachingType, 
-                   $attr->gpuFormatType,
-                   $attr->gpuElementBits,
-                   $attr->gpuCompressionType);
+                   $params->perGpuAttributes[$i].gpuMappingType,
+                   $params->perGpuAttributes[$i].gpuCachingType, 
+                   $params->perGpuAttributes[$i].gpuFormatType,
+                   $params->perGpuAttributes[$i].gpuElementBits,
+                   $params->perGpuAttributes[$i].gpuCompressionType);
             $i++;
         }
         

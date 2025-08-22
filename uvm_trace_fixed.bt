@@ -1,0 +1,77 @@
+#!/usr/bin/env bpftrace
+
+/*
+ * UVM API Function Parameter Tracer (Fixed Version)
+ * 
+ * This script traces the entry parameters of:
+ * - uvm_api_create_external_range
+ * - uvm_api_map_external_allocation
+ *
+ * Usage: sudo bpftrace uvm_trace_fixed.bt
+ */
+
+BEGIN
+{
+    printf("Tracing UVM API functions... Press Ctrl-C to stop\n");
+    printf("%-20s %-10s %-20s %-20s\n", "TIME", "PID", "FUNCTION", "PARAMETERS");
+    printf("================================================================================\n");
+}
+
+// Trace uvm_api_create_external_range function entry
+kprobe:uvm_api_create_external_range
+{
+    $params = (struct UVM_CREATE_EXTERNAL_RANGE_PARAMS *)arg0;
+    
+    printf("%-20s %-10d %-20s base=0x%lx length=0x%lx (%lu bytes)\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           "CREATE_EXT_RANGE",
+           $params->base,
+           $params->length,
+           $params->length);
+}
+
+// Trace uvm_api_map_external_allocation function entry  
+kprobe:uvm_api_map_external_allocation
+{
+    $params = (struct UVM_MAP_EXTERNAL_ALLOCATION_PARAMS *)arg0;
+    
+    printf("%-20s %-10d %-20s base=0x%lx length=0x%lx offset=0x%lx\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           "MAP_EXT_ALLOC",
+           $params->base,
+           $params->length,
+           $params->offset);
+           
+    printf("%20s %10s %20s rmCtrlFd=%d hClient=0x%x hMemory=0x%x gpuCount=%lu\n",
+           "", "", "",
+           $params->rmCtrlFd,
+           $params->hClient,
+           $params->hMemory,
+           $params->gpuAttributesCount);
+}
+
+// Trace function returns to show status
+kretprobe:uvm_api_create_external_range
+{
+    printf("%-20s %-10d %-20s RETURN: status=0x%x\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           "CREATE_EXT_RANGE",
+           retval);
+}
+
+kretprobe:uvm_api_map_external_allocation  
+{
+    printf("%-20s %-10d %-20s RETURN: status=0x%x\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           "MAP_EXT_ALLOC",
+           retval);
+}
+
+END
+{
+    printf("\nTracing ended.\n");
+}

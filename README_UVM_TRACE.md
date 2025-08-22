@@ -4,11 +4,20 @@
 
 ## 脚本文件
 
-### 1. `uvm_trace.bt` - 完整版本
-包含详细的参数解析和 GPU 属性信息，适合深度调试。
+### 1. `uvm_trace_safe.bt` - 推荐版本 ⭐
+最稳定的版本，避免了复杂的结构体访问，适合生产环境使用。
 
 ### 2. `uvm_trace_simple.bt` - 简化版本  
 专注于核心参数，输出更简洁，适合快速监控。
+
+### 3. `uvm_trace_fixed.bt` - 修复版本
+修复了语法错误的版本，包含基本的参数信息。
+
+### 4. `uvm_trace.bt` - 完整版本
+包含详细的参数解析和 GPU 属性信息，适合深度调试（可能有兼容性问题）。
+
+### 5. `uvm_trace_debug.bt` - 调试版本
+包含完整的调用栈和详细调试信息（可能有兼容性问题）。
 
 ## 跟踪的函数
 
@@ -40,14 +49,17 @@
 ### 运行脚本
 
 ```bash
-# 运行完整版本（详细输出）
-sudo bpftrace uvm_trace.bt
+# 推荐：运行安全版本（最稳定）
+sudo bpftrace uvm_trace_safe.bt
+
+# 运行修复版本（包含参数详情）
+sudo bpftrace uvm_trace_fixed.bt
 
 # 运行简化版本（简洁输出）
 sudo bpftrace uvm_trace_simple.bt
 
 # 将输出保存到文件
-sudo bpftrace uvm_trace_simple.bt > uvm_trace.log 2>&1
+sudo bpftrace uvm_trace_safe.bt > uvm_trace.log 2>&1
 ```
 
 ### 示例输出
