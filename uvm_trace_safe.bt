@@ -1,0 +1,75 @@
+#!/usr/bin/env bpftrace
+
+/*
+ * UVM API Function Parameter Tracer (Safe Version)
+ * 
+ * This script traces the entry parameters of:
+ * - uvm_api_create_external_range
+ * - uvm_api_map_external_allocation
+ *
+ * Usage: sudo bpftrace uvm_trace_safe.bt
+ */
+
+BEGIN
+{
+    printf("Tracing UVM API functions... Press Ctrl-C to stop\n");
+    printf("Time                 PID        Function             Parameters\n");
+    printf("================================================================================\n");
+}
+
+// Trace uvm_api_create_external_range function entry
+kprobe:uvm_api_create_external_range
+{
+    printf("%-20s %-10d CREATE_EXT_RANGE    params=%p filp=%p\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           arg0,
+           arg1);
+}
+
+// Trace uvm_api_map_external_allocation function entry  
+kprobe:uvm_api_map_external_allocation
+{
+    printf("%-20s %-10d MAP_EXT_ALLOC       params=%p filp=%p\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           arg0,
+           arg1);
+}
+
+// Trace function returns to show status
+kretprobe:uvm_api_create_external_range
+{
+    printf("%-20s %-10d CREATE_EXT_RANGE    RETURN: status=0x%x (%s)\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           retval,
+           retval == 0 ? "SUCCESS" : "ERROR");
+}
+
+kretprobe:uvm_api_map_external_allocation  
+{
+    printf("%-20s %-10d MAP_EXT_ALLOC       RETURN: status=0x%x (%s)\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           retval,
+           retval == 0 ? "SUCCESS" : "ERROR");
+}
+
+// Count calls
+@create_calls = count();
+@map_calls = count();
+
+kprobe:uvm_api_create_external_range { @create_calls++; }
+kprobe:uvm_api_map_external_allocation { @map_calls++; }
+
+END
+{
+    printf("\n=== Summary ===\n");
+    printf("uvm_api_create_external_range calls: %lu\n", @create_calls);
+    printf("uvm_api_map_external_allocation calls: %lu\n", @map_calls);
+    printf("Tracing ended.\n");
+    
+    clear(@create_calls);
+    clear(@map_calls);
+}

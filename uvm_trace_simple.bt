@@ -1,0 +1,39 @@
+#!/usr/bin/env bpftrace
+
+/*
+ * Simplified UVM API Parameter Tracer
+ * 
+ * Captures entry parameters for:
+ * - uvm_api_create_external_range
+ * - uvm_api_map_external_allocation
+ */
+
+BEGIN
+{
+    printf("Tracing UVM API calls...\n");
+}
+
+kprobe:uvm_api_create_external_range
+{
+    $params = (struct UVM_CREATE_EXTERNAL_RANGE_PARAMS *)arg0;
+    
+    printf("[%s] PID:%d uvm_api_create_external_range(\n", strftime("%H:%M:%S", nsecs), pid);
+    printf("  base:   0x%016lx\n", $params->base);
+    printf("  length: 0x%016lx (%lu bytes)\n", $params->length, $params->length);
+    printf(")\n");
+}
+
+kprobe:uvm_api_map_external_allocation
+{
+    $params = (struct UVM_MAP_EXTERNAL_ALLOCATION_PARAMS *)arg0;
+    
+    printf("[%s] PID:%d uvm_api_map_external_allocation(\n", strftime("%H:%M:%S", nsecs), pid);
+    printf("  base:              0x%016lx\n", $params->base);
+    printf("  length:            0x%016lx (%lu bytes)\n", $params->length, $params->length);
+    printf("  offset:            0x%016lx\n", $params->offset);
+    printf("  rmCtrlFd:          %d\n", $params->rmCtrlFd);
+    printf("  hClient:           0x%08x\n", $params->hClient);
+    printf("  hMemory:           0x%08x\n", $params->hMemory);
+    printf("  gpuAttributesCount: %lu\n", $params->gpuAttributesCount);
+    printf(")\n");
+}

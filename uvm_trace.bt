@@ -1,0 +1,104 @@
+#!/usr/bin/env bpftrace
+
+/*
+ * UVM API Function Parameter Tracer
+ * 
+ * This script traces the entry parameters of:
+ * - uvm_api_create_external_range
+ * - uvm_api_map_external_allocation
+ *
+ * Usage: sudo bpftrace uvm_trace.bt
+ */
+
+BEGIN
+{
+    printf("Tracing UVM API functions... Press Ctrl-C to stop\n");
+    printf("%-20s %-10s %-18s %-18s %-18s %-10s %-10s %-10s\n",
+           "TIME", "PID", "BASE", "LENGTH", "OFFSET", "RM_FD", "CLIENT", "MEMORY");
+}
+
+// Trace uvm_api_create_external_range function entry
+kprobe:uvm_api_create_external_range
+{
+    $params = (struct UVM_CREATE_EXTERNAL_RANGE_PARAMS *)arg0;
+    $filp = (struct file *)arg1;
+    
+    printf("%-20s %-10d CREATE_EXT_RANGE: base=0x%-16lx length=0x%-16lx\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           $params->base,
+           $params->length);
+}
+
+// Trace uvm_api_map_external_allocation function entry  
+kprobe:uvm_api_map_external_allocation
+{
+    $params = (struct UVM_MAP_EXTERNAL_ALLOCATION_PARAMS *)arg0;
+    $filp = (struct file *)arg1;
+    
+    printf("%-20s %-10d MAP_EXT_ALLOC:    base=0x%-16lx length=0x%-16lx offset=0x%-16lx rmCtrlFd=%-8d hClient=0x%-8x hMemory=0x%-8x\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           $params->base,
+           $params->length,
+           $params->offset,
+           $params->rmCtrlFd,
+           $params->hClient,
+           $params->hMemory);
+    
+    // Print GPU attributes count
+    if ($params->gpuAttributesCount > 0) {
+        printf("                     GPU Attributes Count: %lu\n", $params->gpuAttributesCount);
+        
+        // Print first few GPU attributes (limit to avoid too much output)
+        $max_attrs = $params->gpuAttributesCount > 4 ? 4 : $params->gpuAttributesCount;
+        $i = 0;
+        while ($i < $max_attrs) {
+            printf("                     GPU[%d]: UUID=", $i);
+            
+            // Print UUID bytes - access array elements directly
+            $j = 0;
+            while ($j < 16) {
+                printf("%02x", $params->perGpuAttributes[$i].gpuUuid.uuid[$j]);
+                if ($j == 3 || $j == 5 || $j == 7 || $j == 9) {
+                    printf("-");
+                }
+                $j++;
+            }
+            printf(" MappingType=%u CachingType=%u FormatType=%u ElementBits=%u CompressionType=%u\n",
+                   $params->perGpuAttributes[$i].gpuMappingType,
+                   $params->perGpuAttributes[$i].gpuCachingType, 
+                   $params->perGpuAttributes[$i].gpuFormatType,
+                   $params->perGpuAttributes[$i].gpuElementBits,
+                   $params->perGpuAttributes[$i].gpuCompressionType);
+            $i++;
+        }
+        
+        if ($params->gpuAttributesCount > 4) {
+            printf("                     ... (%lu more GPU attributes)\n", 
+                   $params->gpuAttributesCount - 4);
+        }
+    }
+}
+
+// Trace function returns to show status
+kretprobe:uvm_api_create_external_range
+{
+    printf("%-20s %-10d CREATE_EXT_RANGE: returned status=0x%x\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           retval);
+}
+
+kretprobe:uvm_api_map_external_allocation  
+{
+    printf("%-20s %-10d MAP_EXT_ALLOC:    returned status=0x%x\n",
+           strftime("%H:%M:%S", nsecs),
+           pid,
+           retval);
+}
+
+END
+{
+    printf("\nTracing ended.\n");
+}
