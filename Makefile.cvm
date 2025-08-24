@@ -1,0 +1,148 @@
+# Makefile for CVM (Confidential VM) Memory State Transition Module
+#
+# This Makefile builds the kernel modules for confidential computing
+# page state transition mechanism based on page migration approach.
+
+# Kernel build directory - adjust as needed
+KERNEL_BUILD_DIR ?= /lib/modules/$(shell uname -r)/build
+
+# Module name
+MODULE_NAME := cvm_memory
+TEST_MODULE_NAME := cvm_test
+
+# Source files
+CVM_SOURCES := confidential_vm_memory.c confidential_vm_fault.c confidential_vm_workqueue.c
+TEST_SOURCES := test_cvm_transition.c
+
+# Object files
+obj-m += $(MODULE_NAME).o
+obj-m += $(TEST_MODULE_NAME).o
+
+# Multi-object module
+$(MODULE_NAME)-objs := $(CVM_SOURCES:.c=.o)
+$(TEST_MODULE_NAME)-objs := $(TEST_SOURCES:.c=.o)
+
+# Compilation flags
+ccflags-y := -Wall -Wextra -Werror -std=gnu99
+ccflags-y += -DDEBUG
+ccflags-$(CONFIG_AMD_MEM_ENCRYPT) += -DCONFIG_AMD_MEM_ENCRYPT
+ccflags-$(CONFIG_INTEL_TDX_GUEST) += -DCONFIG_INTEL_TDX_GUEST
+
+# Include directories
+ccflags-y += -I$(src)
+
+# Default target
+all: modules
+
+# Build kernel modules
+modules:
+	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(PWD) modules
+
+# Clean build artifacts
+clean:
+	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(PWD) clean
+	rm -f *.o *.ko *.mod.c *.symvers *.order *.markers
+
+# Install modules
+install: modules
+	$(MAKE) -C $(KERNEL_BUILD_DIR) M=$(PWD) modules_install
+	depmod -a
+
+# Load modules
+load: modules
+	@echo "Loading CVM memory management module..."
+	sudo insmod $(MODULE_NAME).ko
+	@echo "Loading CVM test module..."
+	sudo insmod $(TEST_MODULE_NAME).ko
+
+# Unload modules
+unload:
+	@echo "Unloading CVM modules..."
+	-sudo rmmod $(TEST_MODULE_NAME)
+	-sudo rmmod $(MODULE_NAME)
+
+# Test with different parameters
+test-basic: modules
+	sudo insmod $(MODULE_NAME).ko
+	sudo insmod $(TEST_MODULE_NAME).ko test_pages=10 stress_test=false
+	sleep 2
+	sudo rmmod $(TEST_MODULE_NAME)
+	sudo rmmod $(MODULE_NAME)
+
+test-stress: modules
+	sudo insmod $(MODULE_NAME).ko
+	sudo insmod $(TEST_MODULE_NAME).ko test_pages=1000 stress_test=true test_threads=8
+	sleep 5
+	sudo rmmod $(TEST_MODULE_NAME)
+	sudo rmmod $(MODULE_NAME)
+
+# Show module information
+info:
+	@echo "=== CVM Memory Module Information ==="
+	-modinfo $(MODULE_NAME).ko
+	@echo ""
+	@echo "=== CVM Test Module Information ==="
+	-modinfo $(TEST_MODULE_NAME).ko
+
+# Check kernel log for CVM messages
+log:
+	dmesg | grep -i cvm | tail -50
+
+# Debug: show module dependencies
+depends:
+	@echo "Checking module dependencies..."
+	modprobe --show-depends $(MODULE_NAME) || echo "Module not found"
+
+# Create a simple test script
+test-script:
+	@echo "#!/bin/bash" > test_cvm.sh
+	@echo "set -e" >> test_cvm.sh
+	@echo "echo 'Building CVM modules...'" >> test_cvm.sh
+	@echo "make -f Makefile.cvm clean && make -f Makefile.cvm modules" >> test_cvm.sh
+	@echo "echo 'Running basic test...'" >> test_cvm.sh
+	@echo "make -f Makefile.cvm test-basic" >> test_cvm.sh
+	@echo "echo 'Running stress test...'" >> test_cvm.sh
+	@echo "make -f Makefile.cvm test-stress" >> test_cvm.sh
+	@echo "echo 'All tests completed!'" >> test_cvm.sh
+	chmod +x test_cvm.sh
+	@echo "Test script created: test_cvm.sh"
+
+# Documentation target
+docs:
+	@echo "=== CVM State Transition Mechanism Documentation ==="
+	@echo ""
+	@echo "This kernel module implements a page migration-like mechanism"
+	@echo "for confidential computing page state transitions."
+	@echo ""
+	@echo "Key Features:"
+	@echo "- Atomic page state transitions (private ↔ shared)"
+	@echo "- Migration entry-style PTE blocking during transitions"
+	@echo "- Hardware-specific C-bit management (AMD SEV, Intel TDX)"
+	@echo "- Concurrent access handling via page fault mechanism"
+	@echo "- Workqueue-based asynchronous state switching"
+	@echo ""
+	@echo "Usage:"
+	@echo "1. Load module: make -f Makefile.cvm load"
+	@echo "2. Run tests:   make -f Makefile.cvm test-basic"
+	@echo "3. Check logs:  make -f Makefile.cvm log"
+	@echo "4. Unload:      make -f Makefile.cvm unload"
+
+# Help target
+help:
+	@echo "Available targets:"
+	@echo "  all         - Build all modules (default)"
+	@echo "  modules     - Build kernel modules"
+	@echo "  clean       - Clean build artifacts"
+	@echo "  install     - Install modules to system"
+	@echo "  load        - Load modules into kernel"
+	@echo "  unload      - Unload modules from kernel"
+	@echo "  test-basic  - Run basic functionality test"
+	@echo "  test-stress - Run stress test"
+	@echo "  info        - Show module information"
+	@echo "  log         - Show recent CVM kernel messages"
+	@echo "  depends     - Check module dependencies"
+	@echo "  test-script - Create automated test script"
+	@echo "  docs        - Show documentation"
+	@echo "  help        - Show this help"
+
+.PHONY: all modules clean install load unload test-basic test-stress info log depends test-script docs help
