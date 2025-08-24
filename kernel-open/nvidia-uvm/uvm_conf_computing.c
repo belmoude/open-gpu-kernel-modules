@@ -32,6 +32,8 @@
 #include "uvm_tracker.h"
 #include "nv_uvm_interface.h"
 #include "uvm_va_block.h"
+#include "uvm_migrate_pageable.h"
+#include <linux/migrate.h>
 
 
 static UvmGpuConfComputeMode uvm_conf_computing_get_mode(const uvm_parent_gpu_t *parent)
@@ -498,4 +500,85 @@ void uvm_conf_computing_fault_increment_decrypt_iv(uvm_parent_gpu_t *parent_gpu,
                                           NULL);
 
     UVM_ASSERT(status == NV_OK);
+}
+
+NV_STATUS uvm_conf_computing_quiesce_cpu_access(struct mm_struct *mm,
+                                                unsigned long start,
+                                                unsigned long length)
+{
+    return uvm_conf_computing_quiesce_cpu_access_with_fn(mm, start, length, NULL, NULL);
+}
+
+NV_STATUS uvm_conf_computing_quiesce_cpu_access_with_fn(struct mm_struct *mm,
+                                                        unsigned long start,
+                                                        unsigned long length,
+                                                        NV_STATUS (*switch_fn)(unsigned long, unsigned long, void *),
+                                                        void *switch_arg)
+{
+    struct vm_area_struct *vma;
+    unsigned long outer = start + length;
+    NV_STATUS status = NV_OK;
+
+    UVM_ASSERT(PAGE_ALIGNED(start));
+    UVM_ASSERT(PAGE_ALIGNED(length));
+
+    if (!mm || length == 0)
+        return NV_ERR_INVALID_ARGUMENT;
+
+    uvm_down_read_mmap_lock(mm);
+
+    vma = find_vma_intersection(mm, start, outer);
+    if (!vma || (start < vma->vm_start)) {
+        status = NV_ERR_INVALID_ADDRESS;
+        goto out_unlock;
+    }
+
+    for (; vma && vma->vm_start <= outer; vma = find_vma_intersection(mm, vma->vm_end, outer)) {
+        unsigned long cur = max(start, vma->vm_start);
+        unsigned long end = min(outer, vma->vm_end);
+
+        if (!vma_is_anonymous(vma))
+            continue;
+
+        while (cur < end) {
+            unsigned long chunk_end = min(cur + UVM_MIGRATE_VMA_MAX_SIZE, end);
+            struct migrate_vma args = {
+                .vma = vma,
+                .start = cur,
+                .end = chunk_end,
+            };
+#if defined(NV_MIGRATE_VMA_FLAGS_PRESENT)
+            args.flags = 0;
+#endif
+            {
+                int ret = migrate_vma_setup(&args);
+                if (ret < 0) {
+                    status = errno_to_nv_status(ret);
+                    goto out_unlock;
+                }
+
+                if (switch_fn) {
+                    NV_STATUS fn_status = switch_fn(cur, chunk_end - cur, switch_arg);
+                    if (fn_status != NV_OK) {
+                        status = fn_status;
+                        // Still finalize to restore mappings before returning
+                        migrate_vma_finalize(&args);
+                        goto out_unlock;
+                    }
+                }
+
+                // We're only using migrate_vma as a quiesce barrier. No page moves.
+                migrate_vma_pages(&args);
+                migrate_vma_finalize(&args);
+            }
+            cur = chunk_end;
+        }
+
+        if (vma->vm_end >= outer)
+            break;
+    }
+
+out_unlock:
+    uvm_up_read_mmap_lock(mm);
+    return status;
 }
