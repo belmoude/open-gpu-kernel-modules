@@ -219,6 +219,12 @@ static NV_STATUS uvm_test_cgroup_accounting_supported(UVM_TEST_CGROUP_ACCOUNTING
     return UVM_CGROUP_ACCOUNTING_SUPPORTED() ? NV_OK : NV_ERR_NOT_SUPPORTED;
 }
 
+static NV_STATUS uvm_test_cc_quiesce_cpu_access(UVM_TEST_CC_QUIESCE_CPU_ACCESS_PARAMS *params, struct file *filp)
+{
+    struct mm_struct *mm = current->mm;
+    return uvm_conf_computing_quiesce_cpu_access(mm, params->start, params->length);
+}
+
 long uvm_test_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     // Disable all test entry points if the module parameter wasn't provided.
@@ -333,6 +339,7 @@ long uvm_test_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         UVM_ROUTE_CMD_STACK_INIT_CHECK(UVM_TEST_SPLIT_INVALIDATE_DELAY, uvm_test_split_invalidate_delay);
         UVM_ROUTE_CMD_STACK_INIT_CHECK(UVM_TEST_CPU_CHUNK_API, uvm_test_cpu_chunk_api);
         UVM_ROUTE_CMD_STACK_INIT_CHECK(UVM_TEST_SKIP_MIGRATE_VMA, uvm_test_skip_migrate_vma);
+        UVM_ROUTE_CMD_STACK_INIT_CHECK(UVM_TEST_CC_QUIESCE_CPU_ACCESS,         uvm_test_cc_quiesce_cpu_access);
     }
 
     return -EINVAL;

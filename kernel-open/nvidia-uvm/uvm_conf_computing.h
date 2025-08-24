@@ -199,4 +199,17 @@ NV_STATUS uvm_conf_computing_fault_decrypt(uvm_parent_gpu_t *parent_gpu,
 //
 // Locking: this function must be invoked while holding the replayable ISR lock.
 void uvm_conf_computing_fault_increment_decrypt_iv(uvm_parent_gpu_t *parent_gpu, NvU64 increment);
+
+NV_STATUS uvm_conf_computing_quiesce_cpu_access(struct mm_struct *mm,
+                                                unsigned long start,
+                                                unsigned long length);
+
+// Quiesce CPU access over [start, start+length) by installing migration entries
+// and invoke switch_fn within the quiesce window to flip CC state.
+// If switch_fn is NULL, the function simply quiesces briefly and restores.
+NV_STATUS uvm_conf_computing_quiesce_cpu_access_with_fn(struct mm_struct *mm,
+                                                        unsigned long start,
+                                                        unsigned long length,
+                                                        NV_STATUS (*switch_fn)(unsigned long, unsigned long, void *),
+                                                        void *switch_arg);
 #endif // __UVM_CONF_COMPUTING_H__
