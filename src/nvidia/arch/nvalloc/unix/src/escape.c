@@ -301,6 +301,18 @@ NV_STATUS RmIoctl(
             pApi = data;
             pParms = &pApi->params;
 
+            // Print all members of pParms (NVOS02_PARAMETERS)
+            NV_PRINTF(LEVEL_INFO, "=== NVOS02_PARAMETERS members ===\n");
+            NV_PRINTF(LEVEL_INFO, "pParms->hRoot: 0x%x\n", pParms->hRoot);
+            NV_PRINTF(LEVEL_INFO, "pParms->hObjectParent: 0x%x\n", pParms->hObjectParent);
+            NV_PRINTF(LEVEL_INFO, "pParms->hObjectNew: 0x%x\n", pParms->hObjectNew);
+            NV_PRINTF(LEVEL_INFO, "pParms->hClass: 0x%x\n", pParms->hClass);
+            NV_PRINTF(LEVEL_INFO, "pParms->flags: 0x%x\n", pParms->flags);
+            NV_PRINTF(LEVEL_INFO, "pParms->pMemory: 0x%llx\n", (unsigned long long)pParms->pMemory);
+            NV_PRINTF(LEVEL_INFO, "pParms->limit: 0x%llx\n", (unsigned long long)pParms->limit);
+            NV_PRINTF(LEVEL_INFO, "pParms->status: 0x%x\n", pParms->status);
+            NV_PRINTF(LEVEL_INFO, "=== End NVOS02_PARAMETERS members ===\n");
+
             NV_ACTUAL_DEVICE_ONLY(nv);
 
             if (dataSize != sizeof(nv_ioctl_nvos02_parameters_with_fd))
