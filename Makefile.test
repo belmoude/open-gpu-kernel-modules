@@ -1,0 +1,69 @@
+# Makefile for NVIDIA Virtual Memory Allocation Test
+# 用于测试虚拟内存延迟分配行为
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2
+INCLUDES = -I./src/common/sdk/nvidia/inc -I./src/nvidia/arch/nvalloc/unix/include
+
+# 目标文件
+TARGET = test_virtual_alloc
+
+# 源文件
+SOURCES = test_virtual_alloc.c
+
+# 编译规则
+all: $(TARGET)
+
+$(TARGET): $(SOURCES)
+	@echo "编译测试程序..."
+	$(CC) $(CFLAGS) $(INCLUDES) -o $(TARGET) $(SOURCES)
+	@echo "编译完成: $(TARGET)"
+	@echo ""
+	@echo "运行方式:"
+	@echo "  1. 终端1: python3 monitor_memory.py"
+	@echo "  2. 终端2: sudo ./$(TARGET)"
+	@echo ""
+
+clean:
+	@echo "清理生成文件..."
+	rm -f $(TARGET)
+	@echo "清理完成"
+
+test: $(TARGET)
+	@echo "========================================"
+	@echo "  启动测试程序"
+	@echo "========================================"
+	@echo ""
+	@echo "注意: 需要 root 权限访问 /dev/nvidiactl"
+	@echo "      请在另一个终端运行监控脚本:"
+	@echo "      python3 monitor_memory.py"
+	@echo ""
+	@sudo ./$(TARGET)
+
+monitor:
+	@echo "启动显存监控..."
+	@python3 monitor_memory.py
+
+help:
+	@echo "NVIDIA 虚拟内存分配测试 - Makefile 帮助"
+	@echo ""
+	@echo "可用目标:"
+	@echo "  make           - 编译测试程序"
+	@echo "  make test      - 编译并运行测试程序（需要 root）"
+	@echo "  make monitor   - 启动显存监控脚本"
+	@echo "  make clean     - 清理生成的文件"
+	@echo "  make help      - 显示此帮助信息"
+	@echo ""
+	@echo "推荐使用流程:"
+	@echo "  1. make              # 编译"
+	@echo "  2. 终端1: make monitor   # 启动监控"
+	@echo "  3. 终端2: make test      # 运行测试"
+	@echo ""
+	@echo "核心测试点:"
+	@echo "  - NVOS32_ALLOC_FLAGS_VIRTUAL + LAZY"
+	@echo "    => 只保留虚拟地址，nvidia-smi 显存不变"
+	@echo "  - 普通物理内存分配"
+	@echo "    => 立即占用物理显存，nvidia-smi 显存增加"
+	@echo ""
+
+.PHONY: all clean test monitor help
