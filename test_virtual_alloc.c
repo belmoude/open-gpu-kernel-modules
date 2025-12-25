@@ -310,17 +310,21 @@ int main() {
     
 cleanup_device:
     // 清理 Device
-    NVOS00_PARAMETERS freeDeviceParams = {0};
-    freeDeviceParams.hRoot = hClient;
-    freeDeviceParams.hObjectOld = hDevice;
-    ioctl(fd, NV_ESC_RM_FREE, &freeDeviceParams);
+    {
+        NVOS00_PARAMETERS freeDeviceParams = {0};
+        freeDeviceParams.hRoot = hClient;
+        freeDeviceParams.hObjectOld = hDevice;
+        ioctl(fd, NV_ESC_RM_FREE, &freeDeviceParams);
+    }
     
 cleanup_client:
     // 清理 Client
-    NVOS00_PARAMETERS freeClientParams = {0};
-    freeClientParams.hRoot = hClient;
-    freeClientParams.hObjectOld = hClient;
-    ioctl(fd, NV_ESC_RM_FREE, &freeClientParams);
+    {
+        NVOS00_PARAMETERS freeClientParams = {0};
+        freeClientParams.hRoot = hClient;
+        freeClientParams.hObjectOld = hClient;
+        ioctl(fd, NV_ESC_RM_FREE, &freeClientParams);
+    }
     
     close(fd);
     printf("\n测试完成，所有资源已清理\n");

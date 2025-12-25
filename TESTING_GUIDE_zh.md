@@ -118,14 +118,17 @@ _heapAdjustFree(pHeap, -((NvS64) (pBlockNew->end - pBlockNew->begin + 1)));
 ```bash
 cd /workspace
 
-# 方法 1: 使用 Makefile
+# 方法 1: 使用 Makefile（推荐）
 make -f Makefile.test
 
 # 方法 2: 手动编译
 gcc -o test_virtual_alloc test_virtual_alloc.c \
+    -std=c99 \
     -I./src/common/sdk/nvidia/inc \
     -I./src/nvidia/arch/nvalloc/unix/include
 ```
+
+**注意**: 使用 `-std=c99` 确保编译器支持 C99 标准。
 
 ### 2. 准备 Python 监控脚本
 

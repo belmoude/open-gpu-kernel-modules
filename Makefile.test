@@ -2,7 +2,7 @@
 # 用于测试虚拟内存延迟分配行为
 
 CC = gcc
-CFLAGS = -Wall -Wextra -O2
+CFLAGS = -Wall -Wextra -O2 -std=c99
 INCLUDES = -I./src/common/sdk/nvidia/inc -I./src/nvidia/arch/nvalloc/unix/include
 
 # 目标文件
