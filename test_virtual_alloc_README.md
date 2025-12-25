@@ -5,17 +5,24 @@
 在 NVIDIA 驱动中，使用 `NV_ESC_RM_VID_HEAP_CONTROL` + `NVOS32_FUNCTION_ALLOC_SIZE` 时存在两种分配模式：
 
 ### 1. 立即分配物理显存（默认行为）
-- **条件**: 不带 `NVOS32_ALLOC_FLAGS_VIRTUAL/LAZY/EXTERNALLY_MANAGED` 标志
+- **条件**: 不带 `NVOS32_ALLOC_FLAGS_VIRTUAL` 标志
 - **行为**: 立即从 heap 中分配物理显存，`pHeap->free` 立即减少
 - **nvidia-smi**: 立即显示显存使用量增加
 
-### 2. 延迟分配（虚拟内存模式）
-- **条件**: 带 `NVOS32_ALLOC_FLAGS_VIRTUAL` + (`NVOS32_ALLOC_FLAGS_LAZY` 或 `NVOS32_ALLOC_FLAGS_EXTERNALLY_MANAGED`)
+### 2. 延迟分配（虚拟内存模式）⭐ 关键发现
+- **条件**: **只要有 `NVOS32_ALLOC_FLAGS_VIRTUAL` 就够了！**
 - **行为**: 
   - 只在虚拟地址空间中保留（reserve）地址范围
   - 不从物理显存 heap 中分配，`pHeap->free` 不变
   - 物理显存在后续 map 操作（如 `NV_ESC_RM_MAP_MEMORY_DMA`）时才真正分配
-- **nvidia-smi**: 分配后不显示显存增加，map 后才显示
+- **nvidia-smi**: 分配后**数据显存**不增加，map 后才显示
+
+### 📌 重要说明：LAZY 标志的作用
+
+- `NVOS32_ALLOC_FLAGS_LAZY` **不是必需的**
+- `LAZY` 只控制**页表内存**（通常 < 1% 数据大小）
+- **只要有 `VIRTUAL` 标志，数据显存就不会立即分配**
+- `LAZY` 只是让 nvidia-smi 更彻底地不变（连页表内存也不分配）
 
 ## 关键代码位置
 

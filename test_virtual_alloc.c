@@ -183,14 +183,56 @@ int main() {
     
     print_memory_info("初始状态 - 未分配任何显存");
     
-    // 3. 测试场景1：使用 VIRTUAL + LAZY 标志分配虚拟内存（不分配物理显存）
-    printf("\n>>> 场景1：分配虚拟内存（带 LAZY 标志）- 不应立即占用物理显存 <<<\n");
+    // 3. 测试场景1：只使用 VIRTUAL 标志（不带 LAZY）
+    printf("\n>>> 场景1：分配虚拟内存（只有 VIRTUAL 标志）- 不应立即占用数据显存 <<<\n");
+    
+    NV_MEMORY_ALLOCATION_PARAMS virtualAllocParams1 = {0};
+    virtualAllocParams1.owner = hClient;
+    virtualAllocParams1.type = 0;
+    virtualAllocParams1.flags = NVOS32_ALLOC_FLAGS_VIRTUAL |   // 只有 VIRTUAL
+                                NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE;
+    virtualAllocParams1.attr = NVOS32_ATTR_LOCATION_VIDMEM;
+    virtualAllocParams1.attr2 = 0;
+    virtualAllocParams1.size = 1024 * 1024 * 1024; // 1GB 虚拟地址空间
+    virtualAllocParams1.alignment = 4096;
+    virtualAllocParams1.offset = 0;
+    virtualAllocParams1.hVASpace = 0; // 使用默认 VA space
+    
+    NVOS21_PARAMETERS virtualMemParams1 = {0};
+    virtualMemParams1.hRoot = hClient;
+    virtualMemParams1.hObjectParent = hDevice;
+    virtualMemParams1.hObjectNew = 0x87654321; // 指定内存对象句柄
+    virtualMemParams1.hClass = NV50_MEMORY_VIRTUAL;
+    virtualMemParams1.pAllocParms = &virtualAllocParams1;
+    
+    ret = ioctl(fd, NV_ESC_RM_ALLOC, &virtualMemParams1);
+    if (ret != 0 || virtualMemParams1.status != 0) {
+        printf("分配虚拟内存失败: ret=%d, status=0x%x\n", ret, virtualMemParams1.status);
+        goto cleanup_device;
+    }
+    NvU32 hMemory1 = virtualMemParams1.hObjectNew;
+    printf("成功分配虚拟内存对象: 0x%x (大小: %llu MB)\n", 
+           hMemory1, (unsigned long long)(virtualAllocParams1.size / 1024 / 1024));
+    printf("虚拟地址偏移: 0x%llx\n", (unsigned long long)virtualAllocParams1.offset);
+    printf("说明: 可能有很小的页表内存占用（通常 < 1%%），但数据显存不会分配\n");
+    
+    print_memory_info("分配虚拟内存后（只有 VIRTUAL）- nvidia-smi 基本不变");
+    
+    // 释放场景1的虚拟内存
+    NVOS00_PARAMETERS freeVirtual1Params = {0};
+    freeVirtual1Params.hRoot = hClient;
+    freeVirtual1Params.hObjectOld = hMemory1;
+    ioctl(fd, NV_ESC_RM_FREE, &freeVirtual1Params);
+    printf("已释放场景1的虚拟内存\n");
+    
+    // 4. 测试场景2：使用 VIRTUAL + LAZY 标志（更彻底）
+    printf("\n>>> 场景2：分配虚拟内存（VIRTUAL + LAZY）- 完全不占用显存 <<<\n");
     
     NV_MEMORY_ALLOCATION_PARAMS virtualAllocParams = {0};
     virtualAllocParams.owner = hClient;
     virtualAllocParams.type = 0;
     virtualAllocParams.flags = NVOS32_ALLOC_FLAGS_VIRTUAL | 
-                               NVOS32_ALLOC_FLAGS_LAZY |
+                               NVOS32_ALLOC_FLAGS_LAZY |     // 加上 LAZY
                                NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE;
     virtualAllocParams.attr = NVOS32_ATTR_LOCATION_VIDMEM;
     virtualAllocParams.attr2 = 0;
@@ -202,7 +244,7 @@ int main() {
     NVOS21_PARAMETERS virtualMemParams = {0};
     virtualMemParams.hRoot = hClient;
     virtualMemParams.hObjectParent = hDevice;
-    virtualMemParams.hObjectNew = 0x87654321; // 指定内存对象句柄
+    virtualMemParams.hObjectNew = 0x98765432; // 不同的句柄
     virtualMemParams.hClass = NV50_MEMORY_VIRTUAL;
     virtualMemParams.pAllocParms = &virtualAllocParams;
     
@@ -215,11 +257,12 @@ int main() {
     printf("成功分配虚拟内存对象: 0x%x (大小: %llu MB)\n", 
            hMemory, (unsigned long long)(virtualAllocParams.size / 1024 / 1024));
     printf("虚拟地址偏移: 0x%llx\n", (unsigned long long)virtualAllocParams.offset);
+    printf("说明: 连页表内存也不预分配\n");
     
-    print_memory_info("分配虚拟内存后 - 此时 nvidia-smi 不应显示显存增加");
+    print_memory_info("分配虚拟内存后（VIRTUAL + LAZY）- nvidia-smi 完全不变");
     
-    // 4. 测试场景2：使用标准 NVOS32 分配物理显存（对比）
-    printf("\n>>> 场景2：分配物理显存（不带 VIRTUAL/LAZY 标志）- 应立即占用物理显存 <<<\n");
+    // 5. 测试场景3：使用标准 NVOS32 分配物理显存（对比）
+    printf("\n>>> 场景3：分配物理显存（不带 VIRTUAL/LAZY 标志）- 应立即占用物理显存 <<<\n");
     
     NVOS32_PARAMETERS physAllocParams = {0};
     physAllocParams.hRoot = hClient;

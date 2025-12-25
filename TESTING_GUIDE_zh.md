@@ -24,12 +24,11 @@ NVOS32_PARAMETERS params = {
 - ✅ `pHeap->free` 立即减少
 - ✅ nvidia-smi 立即显示显存使用增加
 
-### 模式 2：延迟分配（虚拟内存 + LAZY）
+### 模式 2：延迟分配（只需要 VIRTUAL 标志）
 
 ```c
 NV_MEMORY_ALLOCATION_PARAMS params = {
-    .flags = NVOS32_ALLOC_FLAGS_VIRTUAL | 
-             NVOS32_ALLOC_FLAGS_LAZY,
+    .flags = NVOS32_ALLOC_FLAGS_VIRTUAL,  // 只要有 VIRTUAL 就够了！
     .attr = NVOS32_ATTR_LOCATION_VIDMEM,
     .size = 1024 * 1024 * 1024,  // 1GB 虚拟地址
 };
@@ -41,8 +40,16 @@ NV_MEMORY_ALLOCATION_PARAMS params = {
 - ✅ 只在 VA space 中保留地址范围
 - ❌ **不**从 heap 分配物理显存
 - ❌ `pHeap->free` **不**变化
-- ❌ nvidia-smi **不**显示显存增加
+- ❌ nvidia-smi **不**显示数据显存增加
+- ⚠️ 可能有约 2MB 页表内存（通常 < 1%，可忽略）
 - ⏰ 物理显存在后续 **map 操作时才分配**
+
+**可选优化**：加上 LAZY 标志
+```c
+.flags = NVOS32_ALLOC_FLAGS_VIRTUAL | NVOS32_ALLOC_FLAGS_LAZY,
+```
+- 连页表内存也不预分配
+- nvidia-smi **完全**不变
 
 ## 关键代码证据
 
@@ -172,9 +179,9 @@ sudo ./test_virtual_alloc
 
 ---
 
-### 阶段 2: 分配虚拟内存（VIRTUAL + LAZY）
+### 阶段 2: 分配虚拟内存（只有 VIRTUAL）
 ```
->>> 场景1：分配虚拟内存（带 LAZY 标志）- 不应立即占用物理显存 <<<
+>>> 场景1：分配虚拟内存（只有 VIRTUAL 标志）- 不应立即占用数据显存 <<<
 成功分配虚拟内存对象: 0x87654321 (大小: 1024 MB)
 虚拟地址偏移: 0x...
 
@@ -182,14 +189,29 @@ sudo ./test_virtual_alloc
 ```
 
 **nvidia-smi 显示**: 
-- ❌ **显存使用量不变**（与基线相同）
-- ✅ **这证明了虚拟内存分配不占用物理显存**
+- ❌ **显存使用量基本不变**（可能 +1~2MB 页表）
+- ✅ **这证明了只要有 VIRTUAL 标志，数据显存就不会分配**
 
 ---
 
-### 阶段 3: 分配物理显存（无 VIRTUAL/LAZY）
+### 阶段 3: 分配虚拟内存（VIRTUAL + LAZY）
 ```
->>> 场景2：分配物理显存（不带 VIRTUAL/LAZY 标志）- 应立即占用物理显存 <<<
+>>> 场景2：分配虚拟内存（VIRTUAL + LAZY）- 完全不占用显存 <<<
+成功分配虚拟内存对象: 0x98765432 (大小: 1024 MB)
+虚拟地址偏移: 0x...
+
+按回车继续...
+```
+
+**nvidia-smi 显示**: 
+- ❌ **显存使用量完全不变**（连页表也没有）
+- ✅ **这证明了 LAZY 只是进一步避免页表内存**
+
+---
+
+### 阶段 4: 分配物理显存（无 VIRTUAL 标志）
+```
+>>> 场景3：分配物理显存（不带 VIRTUAL/LAZY 标志）- 应立即占用物理显存 <<<
 成功分配物理显存: 0x12345678 (大小: 256 MB)
 
 按回车继续...
@@ -198,10 +220,11 @@ sudo ./test_virtual_alloc
 **nvidia-smi 显示**:
 - ✅ **显存使用量增加约 256MB**
 - ✅ **这证明了物理显存分配立即占用显存**
+- ✅ **对比验证了 VIRTUAL 标志的作用**
 
 ---
 
-### 阶段 4: 清理
+### 阶段 5: 清理
 ```
 已释放物理显存
 测试完成，所有资源已清理
@@ -213,38 +236,53 @@ sudo ./test_virtual_alloc
 
 ### ✅ 成功标志
 
-1. **虚拟内存分配后**:
-   - `nvidia-smi` 显示的已用显存 **≈** 基线
-   - 没有明显增加（误差 < 10MB）
+1. **场景1（只有 VIRTUAL）**:
+   - `nvidia-smi` 显示的已用显存 **≈** 基线 + 0~2MB
+   - 页表内存占用（通常可忽略）
 
-2. **物理显存分配后**:
+2. **场景2（VIRTUAL + LAZY）**:
+   - `nvidia-smi` 显示的已用显存 **≈** 基线 + 0MB
+   - 完全没有增加
+
+3. **场景3（物理显存）**:
    - `nvidia-smi` 显示的已用显存 **≈** 基线 + 256MB
    - 有明显增加
 
-3. **清理后**:
+4. **清理后**:
    - `nvidia-smi` 显示的已用显存 **≈** 基线
    - 恢复到初始状态
 
 ### ❌ 失败情况
 
-如果虚拟内存分配后 `nvidia-smi` 显示显存明显增加，可能原因：
-1. 标志设置错误（没有 LAZY 或 EXTERNALLY_MANAGED）
-2. 驱动版本不支持延迟分配
+如果虚拟内存分配后 `nvidia-smi` 显示显存明显增加（> 10MB），可能原因：
+1. 标志设置错误（**没有 VIRTUAL 标志**）
+2. 驱动版本不支持虚拟内存分配
 3. 系统配置问题
+
+**注意**：
+- 场景1 有 1~2MB 的页表内存是**正常的**
+- 只有场景2（VIRTUAL + LAZY）才完全不增加
 
 ## 标志详解
 
-### NVOS32_ALLOC_FLAGS_VIRTUAL (0x00080000)
+### ⭐ NVOS32_ALLOC_FLAGS_VIRTUAL (0x00080000) **← 关键标志**
+- **这是最关键的标志**
 - 指示这是虚拟内存分配
-- 使用 VA space，不直接分配物理页
+- 使用 `NV50_MEMORY_VIRTUAL` 类而不是 `NV01_MEMORY_LOCAL_USER`
+- 从 VA space heap 分配，**不涉及物理显存 heap**
+- nvidia-smi 看不到数据显存增加
 
-### NVOS32_ALLOC_FLAGS_LAZY (0x00000400)
-- 延迟分配模式
-- 物理内存在首次访问或 map 时才分配
+### NVOS32_ALLOC_FLAGS_LAZY (0x00000400) **← 辅助标志**
+- **这不是必需的**，只是锦上添花
+- 控制页表内存是否预先分配
+- 页表内存通常 < 数据大小的 1%
+- 有 LAZY: 连页表也不分配（nvidia-smi 完全不变）
+- 无 LAZY: 预分配页表（nvidia-smi 可能 +1~2MB）
 
 ### NVOS32_ALLOC_FLAGS_EXTERNALLY_MANAGED (0x00400000)
 - 外部管理模式
 - 物理页的分配由外部（如应用层）管理
+- 与 LAZY 类似，也会跳过页表内存预分配
 
 ### NVOS32_ALLOC_FLAGS_VIRTUAL_ONLY
 组合标志，定义在 `nvos.h:1491-1497`:
