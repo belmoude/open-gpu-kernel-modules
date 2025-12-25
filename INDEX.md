@@ -1,6 +1,16 @@
 # 文档索引
 
-## 🚀 立即开始
+> ⚠️ **遇到 ioctl 失败？** 立即查看 **[START_HERE_zh.md](START_HERE_zh.md)** ⭐
+
+## 🚀 立即开始（修复版）
+
+```bash
+cd /workspace
+./QUICK_START_FIXED.sh
+sudo ./test_virtual_alloc_fixed
+```
+
+## 🚀 立即开始（原始版）
 
 ```bash
 cd /workspace
@@ -40,6 +50,7 @@ cd /workspace
 
 ### 实践指南
 - `TESTING_GUIDE_zh.md`
+- `IOCTL_FIX_GUIDE_zh.md` ⭐
 - `BUILD_FIX.md`
 - `QUICK_START.sh`
 
@@ -101,6 +112,7 @@ README_FINAL.md (总览)
 
 | 问题 | 文档 |
 |-----|------|
+| ioctl 调用失败？ | IOCTL_FIX_GUIDE_zh.md |
 | LAZY 标志是否必需？ | QUICK_REFERENCE.md |
 | 为什么 nvidia-smi 不变？ | ANSWER_SUMMARY.md |
 | 如何运行测试？ | TESTING_GUIDE_zh.md |

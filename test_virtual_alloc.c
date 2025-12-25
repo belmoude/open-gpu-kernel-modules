@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <stdint.h>
+#include <errno.h>
 
 // 简化的 NVIDIA 类型和常量定义
 typedef uint32_t NvU32;
@@ -158,7 +159,14 @@ int main() {
     
     ret = ioctl(fd, NV_ESC_RM_ALLOC, &clientParams);
     if (ret != 0 || clientParams.status != 0) {
-        printf("分配 Client 失败: ret=%d, status=0x%x\n", ret, clientParams.status);
+        printf("分配 Client 失败: ret=%d, status=0x%x, errno=%d (%s)\n", 
+               ret, clientParams.status, errno, strerror(errno));
+        printf("详细信息:\n");
+        printf("  - ioctl 命令号: 0x%lx\n", (unsigned long)NV_ESC_RM_ALLOC);
+        printf("  - 参数结构体大小: %lu bytes\n", sizeof(clientParams));
+        printf("  - hRoot: 0x%x\n", clientParams.hRoot);
+        printf("  - hObjectParent: 0x%x\n", clientParams.hObjectParent);
+        printf("  - hClass: 0x%x\n", clientParams.hClass);
         close(fd);
         return 1;
     }

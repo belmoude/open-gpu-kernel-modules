@@ -1,5 +1,9 @@
 # NVIDIA 虚拟内存分配行为测试套件
 
+> ⚠️ **重要更新**：原测试程序的 ioctl 调用方式有误，已提供修复版本！
+> 
+> 请使用 `test_virtual_alloc_fixed.c` 或阅读 [IOCTL_FIX_GUIDE_zh.md](IOCTL_FIX_GUIDE_zh.md)
+
 ## 🎯 核心发现
 
 **只要有 `NVOS32_ALLOC_FLAGS_VIRTUAL` 标志，nvidia-smi 就看不到数据显存的分配！**
@@ -14,40 +18,40 @@
 - **`VIRTUAL_FLAG_ANALYSIS.md`** - 完整代码分析
 
 ### 测试相关
-- **`test_virtual_alloc.c`** - 测试程序（3个场景）
+- **`test_virtual_alloc_fixed.c`** ⭐ - 修复版测试程序（推荐）
+- **`test_virtual_alloc.c`** - 原始测试程序（仅供参考）
+- **`VERSION_COMPARISON_zh.md`** - 版本对比说明
 - **`monitor_memory.py`** - Python 显存监控脚本
 - **`Makefile.test`** - 编译和测试自动化
 - **`TESTING_GUIDE_zh.md`** - 完整测试指南
 - **`test_virtual_alloc_README.md`** - 技术文档
 
 ### 工具脚本
-- **`QUICK_START.sh`** ⭐ - 一键编译和准备
+- **`QUICK_START_FIXED.sh`** ⭐ - 修复版快速启动（推荐）
+- **`QUICK_START.sh`** - 原始快速启动
+- **`IOCTL_FIX_GUIDE_zh.md`** ⭐ - ioctl 修复指南（重要）
 - **`BUILD_FIX.md`** - 编译问题修复说明
 
 ## 🚀 快速开始
 
-### 方法 1: 使用快速启动脚本（推荐）
+### 方法 1: 使用修复版快速启动脚本（强烈推荐）
 
 ```bash
 cd /workspace
-./QUICK_START.sh
+./QUICK_START_FIXED.sh
+sudo ./test_virtual_alloc_fixed
 ```
 
-按照提示操作即可。
-
-### 方法 2: 手动编译
+### 方法 2: 手动编译修复版
 
 ```bash
 cd /workspace
 
-# 编译
-gcc -o test_virtual_alloc test_virtual_alloc.c \
-    -std=c99 \
-    -I./src/common/sdk/nvidia/inc \
-    -I./src/nvidia/arch/nvalloc/unix/include
+# 编译修复版
+gcc -o test_virtual_alloc_fixed test_virtual_alloc_fixed.c -std=c99
 
-# 或使用 Makefile
-make -f Makefile.test
+# 运行
+sudo ./test_virtual_alloc_fixed
 ```
 
 ### 方法 3: 使用 Makefile（最简单）
