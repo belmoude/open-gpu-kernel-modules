@@ -1,8 +1,12 @@
 # NVIDIA 虚拟内存分配行为测试套件
 
-> ⚠️ **重要更新**：原测试程序的 ioctl 调用方式有误，已提供修复版本！
+> ⚠️ **重要更新**：原测试程序有两个问题已修复：
+> 1. ioctl 调用方式错误（已修复）
+> 2. Device 分配参数缺失（已修复）
 > 
-> 请使用 `test_virtual_alloc_fixed.c` 或阅读 [IOCTL_FIX_GUIDE_zh.md](IOCTL_FIX_GUIDE_zh.md)
+> 请使用 `test_virtual_alloc_fixed.c`！
+>
+> 遇到问题？查看 **[TROUBLESHOOTING_zh.md](TROUBLESHOOTING_zh.md)**
 
 ## 🎯 核心发现
 

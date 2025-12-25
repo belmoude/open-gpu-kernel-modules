@@ -59,4 +59,14 @@ fi
 echo
 
 echo "✅ 所有准备工作完成！"
-echo "现在可以运行: sudo ./test_virtual_alloc_fixed"
+echo
+echo "================================================"
+echo "  现在运行测试程序："
+echo "================================================"
+echo
+echo "  sudo ./test_virtual_alloc_fixed"
+echo
+echo "如果遇到问题，请查看："
+echo "  - DEVICE_ALLOC_FIX_zh.md (Device 分配错误)"
+echo "  - IOCTL_FIX_GUIDE_zh.md (ioctl 调用错误)"
+echo

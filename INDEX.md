@@ -1,6 +1,8 @@
 # 文档索引
 
-> ⚠️ **遇到 ioctl 失败？** 立即查看 **[START_HERE_zh.md](START_HERE_zh.md)** ⭐
+> ⚠️ **遇到任何问题？** 
+> - 快速开始: **[START_HERE_zh.md](START_HERE_zh.md)** ⭐
+> - 问题排查: **[TROUBLESHOOTING_zh.md](TROUBLESHOOTING_zh.md)** ⭐
 
 ## 🚀 立即开始（修复版）
 
@@ -51,13 +53,18 @@ cd /workspace
 ### 实践指南
 - `TESTING_GUIDE_zh.md`
 - `IOCTL_FIX_GUIDE_zh.md` ⭐
+- `DEVICE_ALLOC_FIX_zh.md` ⭐
 - `BUILD_FIX.md`
 - `QUICK_START.sh`
 
 ### 测试工具
+- `test_virtual_alloc_fixed.c` ⭐
 - `test_virtual_alloc.c`
 - `monitor_memory.py`
 - `Makefile.test`
+
+### 参考文档
+- `ERROR_CODES_zh.md` - 错误码参考手册
 
 ## 🎯 核心结论
 
@@ -113,12 +120,13 @@ README_FINAL.md (总览)
 | 问题 | 文档 |
 |-----|------|
 | ioctl 调用失败？ | IOCTL_FIX_GUIDE_zh.md |
+| Device 分配失败 (0x1b)？ | DEVICE_ALLOC_FIX_zh.md |
 | LAZY 标志是否必需？ | QUICK_REFERENCE.md |
 | 为什么 nvidia-smi 不变？ | ANSWER_SUMMARY.md |
 | 如何运行测试？ | TESTING_GUIDE_zh.md |
 | 编译错误怎么办？ | BUILD_FIX.md |
 | 代码在哪里？ | VIRTUAL_FLAG_ANALYSIS.md |
-| 快速开始？ | QUICK_START.sh |
+| 快速开始？ | QUICK_START_FIXED.sh |
 
 ## ⏱️ 时间投入建议
 

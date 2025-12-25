@@ -50,6 +50,9 @@ typedef struct nv_ioctl_xfer
 #define NV01_DEVICE_0                 0x00000080
 #define NV50_MEMORY_VIRTUAL           0x000050a0
 
+// VA Space Mode 定义
+#define NV_DEVICE_ALLOCATION_VAMODE_MULTIPLE_VASPACES  0
+
 // NVOS32 定义
 #define NVOS32_FUNCTION_ALLOC_SIZE    2
 #define NVOS32_FUNCTION_FREE          3
@@ -80,6 +83,18 @@ typedef struct {
     NvU32  hObjectOld;
     NvU32  status;
 } NVOS00_PARAMETERS;
+
+typedef struct {
+    NvU32  deviceId;
+    NvU32  hClientShare;
+    NvU32  hTargetClient;
+    NvU32  hTargetDevice;
+    NvS32  flags;
+    NvU64  vaSpaceSize NV_ALIGN_BYTES(8);
+    NvU64  vaStartInternal NV_ALIGN_BYTES(8);
+    NvU64  vaLimitInternal NV_ALIGN_BYTES(8);
+    NvS32  vaMode;
+} NV0080_ALLOC_PARAMETERS;
 
 typedef struct {
     NvU32  owner;
@@ -195,19 +210,39 @@ int main() {
     
     // 2. 分配 Device
     printf(">>> 步骤 2: 分配 Device\n");
+    NV0080_ALLOC_PARAMETERS deviceAllocParams = {0};
+    deviceAllocParams.deviceId = 0;  // GPU 0
+    deviceAllocParams.hClientShare = 0;
+    deviceAllocParams.hTargetClient = 0;
+    deviceAllocParams.hTargetDevice = 0;
+    deviceAllocParams.flags = 0;
+    deviceAllocParams.vaSpaceSize = 0;
+    deviceAllocParams.vaStartInternal = 0;
+    deviceAllocParams.vaLimitInternal = 0;
+    deviceAllocParams.vaMode = NV_DEVICE_ALLOCATION_VAMODE_MULTIPLE_VASPACES;
+    
     NVOS64_PARAMETERS deviceParams = {0};
     deviceParams.hRoot = hClient;
     deviceParams.hObjectParent = hClient;
     deviceParams.hObjectNew = 0x12340000;
     deviceParams.hClass = NV01_DEVICE_0;
-    deviceParams.pAllocParms = NULL;
+    deviceParams.pAllocParms = &deviceAllocParams;
     
     ret = nv_ioctl(fd, NV_ESC_RM_ALLOC, &deviceParams, sizeof(deviceParams));
     if (ret != 0 || deviceParams.status != 0) {
         printf("❌ 分配 Device 失败:\n");
         printf("   ioctl 返回: %d\n", ret);
         printf("   errno: %d (%s)\n", errno, strerror(errno));
-        printf("   status: 0x%x\n", deviceParams.status);
+        printf("   status: 0x%x", deviceParams.status);
+        if (deviceParams.status == 0x1b) {
+            printf(" (NV_ERR_INSUFFICIENT_PERMISSIONS)\n");
+            printf("   可能原因:\n");
+            printf("   - 未使用 sudo 运行\n");
+            printf("   - GPU 设备不可访问\n");
+            printf("   - 驱动版本不兼容\n");
+        } else {
+            printf("\n");
+        }
         goto cleanup_client;
     }
     hDevice = deviceParams.hObjectNew;
